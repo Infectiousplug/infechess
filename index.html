@@ -19,6 +19,7 @@
     --text-dim: #6e6a62;
     --light-sq: #e8d5a3;
     --dark-sq: #8b6914;
+    --board-size: 520px;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -46,9 +47,10 @@
   /* ── LAYOUT ── */
   main {
     flex:1; display:grid;
-    grid-template-columns:236px 560px 236px;
+    grid-template-columns:236px var(--board-size) 236px;
     column-gap:28px;
-    max-width:1100px; margin:0 auto; width:100%;
+    max-width:calc(236px + var(--board-size) + 236px + 56px);
+    margin:0 auto; width:100%;
     padding:30px 40px; align-items:start;
   }
   .panel { display:flex; flex-direction:column; gap:16px; }
@@ -107,23 +109,23 @@
 
   /* ── BOARD ── */
   .board-container { display:flex; flex-direction:column; align-items:center; flex-shrink:0; }
-  .coord-row { display:flex; width:520px; padding-left:20px; height:15px; }
+  .coord-row { display:flex; width:var(--board-size); padding-left:20px; height:15px; }
   .coord-letter { flex:1; text-align:center; font-size:9px; color:var(--text-dim); line-height:15px; }
   .board-and-ranks { display:flex; align-items:stretch; }
   .rank-col { display:flex; flex-direction:column; width:20px; justify-content:space-around; }
   .coord-rank { font-size:9px; color:var(--text-dim); text-align:right; padding-right:4px; line-height:1; }
 
   #chessboard {
-    width:520px; height:520px;
-    min-width:520px; max-width:520px; min-height:520px; max-height:520px;
-    display:grid; grid-template-columns:repeat(8,65px); grid-template-rows:repeat(8,65px);
+    width:var(--board-size); height:var(--board-size);
+    min-width:var(--board-size); max-width:var(--board-size); min-height:var(--board-size); max-height:var(--board-size);
+    display:grid; grid-template-columns:repeat(8, calc(var(--board-size) / 8)); grid-template-rows:repeat(8, calc(var(--board-size) / 8));
     border:2px solid var(--accent-dim);
     box-shadow:0 0 80px rgba(0,0,0,.9), 0 0 0 1px rgba(201,168,92,.08);
     overflow:hidden; flex-shrink:0;
   }
 
   .square {
-    width:65px; height:65px; position:relative;
+    width:calc(var(--board-size) / 8); height:calc(var(--board-size) / 8); position:relative;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; user-select:none;
   }
@@ -144,9 +146,12 @@
 
   .piece {
     width:90%; height:90%; display:flex; align-items:center; justify-content:center;
-    z-index:1; pointer-events:none;
+    z-index:1; 
+    pointer-events: auto; /* Changed from none to allow dragging */
+    cursor: grab;
   }
-  .piece svg { width:100%; height:100%; }
+  .piece:active { cursor: grabbing; }
+  .piece svg { width:100%; height:100%; pointer-events: none; }
 
   /* ── RIGHT PANEL ── */
   .status-box { background:var(--surface); border:1px solid var(--border); padding:13px; }
@@ -175,6 +180,24 @@
     padding:7px; min-height:34px;
   }
   .captured-pieces svg { width:22px; height:22px; }
+
+  .piece img, .promo-piece img, .captured-pieces img {
+    width:100%; height:100%; display:block; pointer-events:none; object-fit:contain;
+  }
+  .captured-pieces img { width:22px; height:22px; }
+
+  .clock-box {
+    display:flex; flex-direction:column; gap:6px; margin-top:10px;
+    padding:10px 11px; background:var(--surface); border:1px solid var(--border);
+  }
+  .clock-row {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:11px; letter-spacing:.08em; color:var(--text-dim);
+  }
+  .clock-row strong { color:var(--text); font-weight:700; }
+  .clock-time { font-variant-numeric: tabular-nums; color:var(--text); }
+  .clock-time.low { color:#d9a0a0; }
+  .clock-time.flagged { color:#ffb3b3; }
 
   /* ── OVERLAYS ── */
   .overlay {
@@ -256,7 +279,6 @@
 </header>
 
 <main>
-  <!-- LEFT PANEL -->
   <aside class="panel">
     <div class="player-card">
       <div class="panel-label">You</div>
@@ -287,11 +309,42 @@
       </div>
     </div>
 
+
+    <div>
+      <div class="panel-label">Piece Set</div>
+      <div class="btn-col">
+        <button class="opt-btn active" data-piece-set="staunton" onclick="setPieceSet(this)">STAUNTON <span class="badge">S1</span></button>
+        <button class="opt-btn" data-piece-set="cburnett" onclick="setPieceSet(this)">CBURNETT <span class="badge">LI</span></button>
+        <button class="opt-btn" data-piece-set="merida" onclick="setPieceSet(this)">MERIDA <span class="badge">M3</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-label">Time Control</div>
+      <div class="btn-col">
+        <button class="opt-btn active" data-time-control="unlimited" onclick="setTimeControl(this)">UNLIMITED <span class="badge">∞</span></button>
+        <button class="opt-btn" data-time-control="1+0" onclick="setTimeControl(this)">1+0 <span class="badge">BLITZ</span></button>
+        <button class="opt-btn" data-time-control="3+2" onclick="setTimeControl(this)">3+2 <span class="badge">RAPID</span></button>
+        <button class="opt-btn" data-time-control="5+0" onclick="setTimeControl(this)">5+0 <span class="badge">BLITZ</span></button>
+        <button class="opt-btn" data-time-control="10+0" onclick="setTimeControl(this)">10+0 <span class="badge">CLASSIC</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-label">Board Size</div>
+      <div class="btn-col">
+        <button class="opt-btn" data-board-size="440" onclick="setBoardSize(this)">SMALL <span class="badge">440</span></button>
+        <button class="opt-btn active" data-board-size="520" onclick="setBoardSize(this)">STANDARD <span class="badge">520</span></button>
+        <button class="opt-btn" data-board-size="560" onclick="setBoardSize(this)">LARGE <span class="badge">560</span></button>
+        <button class="opt-btn" data-board-size="640" onclick="setBoardSize(this)">XL <span class="badge">640</span></button>
+        <button class="opt-btn" data-board-size="720" onclick="setBoardSize(this)">XXL <span class="badge">720</span></button>
+      </div>
+    </div>
+
     <button class="action-btn new-game-btn" onclick="newGame()">New Game</button>
     <button class="action-btn resign-btn" id="resign-btn" onclick="askResign()" disabled>Resign</button>
   </aside>
 
-  <!-- BOARD -->
   <section class="board-container">
     <div class="coord-row" id="coords-top"></div>
     <div class="board-and-ranks">
@@ -301,12 +354,15 @@
     <div class="coord-row" id="coords-bottom"></div>
   </section>
 
-  <!-- RIGHT PANEL -->
   <aside class="panel">
     <div class="status-box">
       <div class="status-indicator">
         <div class="status-dot" id="status-dot"></div>
         <div id="status-text">Game in progress. Your move.</div>
+      </div>
+      <div class="clock-box" id="clock-box">
+        <div class="clock-row"><strong>YOU</strong><span class="clock-time" id="clock-you">∞</span></div>
+        <div class="clock-row"><strong>BOT</strong><span class="clock-time" id="clock-bot">∞</span></div>
       </div>
     </div>
 
@@ -336,7 +392,6 @@
   </aside>
 </main>
 
-<!-- Game Over Overlay -->
 <div class="overlay" id="game-overlay">
   <div class="overlay-card">
     <div class="overlay-icon" id="overlay-icon">♛</div>
@@ -346,7 +401,6 @@
   </div>
 </div>
 
-<!-- Resign Confirm -->
 <div id="resign-confirm">
   <div class="confirm-card">
     <div class="confirm-title">Resign the game?</div>
@@ -358,7 +412,6 @@
   </div>
 </div>
 
-<!-- Promotion Modal -->
 <div id="promotion-modal">
   <div class="promo-card">
     <div class="promo-title">Promote Pawn</div>
@@ -372,21 +425,59 @@
 </footer>
 
 <script>
-// ─── SVG Piece Definitions (Staunton-style) ───────────────────
-const SVG_PIECES = {
-  wP: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round"><path d="M22.5 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M14 29.5c0-4.5 2.5-8 8.5-8s8.5 3.5 8.5 8h-17z"/><path d="M11.5 37c0 1.5 1 2.5 2.5 2.5h17c1.5 0 2.5-1 2.5-2.5v-3H11.5v3z"/><path d="M12 34h21" stroke-width="1"/><path d="M18.5 29.5v-8" stroke-width="1.5"/><path d="M26.5 29.5v-8" stroke-width="1.5"/></g></svg>`,
-  wR: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-4h21v4H12z"/><path d="M11 14V9h4v2h5V9h5v2h5V9h4v5"/><path d="M34 14l-3 3H14l-3-3h23z"/><path d="M31 17v15H14V17h17z"/><path d="M34 36H11" stroke-width="1"/></g></svg>`,
-  wN: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path d="M24 18c.38 5.12-4 7-7 5-3.44-.95-2.85-3.68-1-6.5.5-.75 3.5-3 4.5-4.5-1.5 2.5 0 5 3.5 6z"/><path d="M9.5 25.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#333" stroke="#333" stroke-width="1"/><path d="M15 15.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#333" stroke="#333" stroke-width="1"/><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-2h21v2H12z"/></g></svg>`,
-  wB: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.46 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" stroke-width="1"/></g></svg>`,
-  wQ: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 26c8.5-8.5 25-8.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L8 14l2 12z"/><path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-3.5-18.5-3.5-27 0z"/><path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c4-1.5 17-1.5 21 0" stroke-width="1"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="9" r="2"/><circle cx="22.5" cy="8" r="2"/><circle cx="31" cy="9" r="2"/><circle cx="39" cy="12" r="2"/></g></svg>`,
-  wK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6" stroke-width="1.5"/><path d="M20 8h5" stroke-width="1.5"/><path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5z"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0l1.5-8c-5.5 4-17.5 4-23 0l1.5 8z"/><path d="M11.5 30c5.5-3 15.5-3 22 0"/><path d="M11.5 30l1.5-7.5c0-3 4-7.5 9.5-7.5s9.5 4.5 9.5 7.5l1.5 7.5"/><path d="M11.5 30c0-3 1.5-4.5 3-6 3-2.5 5.5-3 7.5-3s4.5.5 7.5 3c1.5 1.5 3 3 3 6"/><path d="M17 37v-5.5M27 37v-5.5M20 30v-3M25 30v-3" stroke-width="1"/><path d="M12 37h21" stroke-width="1"/></g></svg>`,
-  bP: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round"><path d="M22.5 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M14 29.5c0-4.5 2.5-8 8.5-8s8.5 3.5 8.5 8h-17z"/><path d="M11.5 37c0 1.5 1 2.5 2.5 2.5h17c1.5 0 2.5-1 2.5-2.5v-3H11.5v3z"/><path d="M12 34h21" stroke="#555" stroke-width="1"/><path d="M18.5 29.5v-8" stroke="#555" stroke-width="1.5"/><path d="M26.5 29.5v-8" stroke="#555" stroke-width="1.5"/></g></svg>`,
-  bR: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-4h21v4H12z"/><path d="M11 14V9h4v2h5V9h5v2h5V9h4v5"/><path d="M34 14l-3 3H14l-3-3h23z"/><path d="M31 17v15H14V17h17z"/><path d="M34 36H11" stroke="#555" stroke-width="1"/><path d="M31 17H14M34 14H11" stroke="#555" stroke-width="1"/></g></svg>`,
-  bN: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path d="M24 18c.38 5.12-4 7-7 5-3.44-.95-2.85-3.68-1-6.5.5-.75 3.5-3 4.5-4.5-1.5 2.5 0 5 3.5 6z"/><path d="M9.5 25.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#aaa" stroke="#aaa" stroke-width="1"/><path d="M15 15.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#aaa" stroke="#aaa" stroke-width="1"/><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-2h21v2H12z"/></g></svg>`,
-  bB: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.46 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" stroke="#555" stroke-width="1"/></g></svg>`,
-  bQ: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 26c8.5-8.5 25-8.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L8 14l2 12z"/><path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-3.5-18.5-3.5-27 0z"/><path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c4-1.5 17-1.5 21 0" stroke="#555" stroke-width="1"/><circle cx="6" cy="12" r="2" fill="#555"/><circle cx="14" cy="9" r="2" fill="#555"/><circle cx="22.5" cy="8" r="2" fill="#555"/><circle cx="31" cy="9" r="2" fill="#555"/><circle cx="39" cy="12" r="2" fill="#555"/></g></svg>`,
-  bK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6" stroke-width="1.5"/><path d="M20 8h5" stroke-width="1.5"/><path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5z"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0l1.5-8c-5.5 4-17.5 4-23 0l1.5 8z"/><path d="M11.5 30c5.5-3 15.5-3 22 0"/><path d="M11.5 30l1.5-7.5c0-3 4-7.5 9.5-7.5s9.5 4.5 9.5 7.5l1.5 7.5"/><path d="M11.5 30c0-3 1.5-4.5 3-6 3-2.5 5.5-3 7.5-3s4.5.5 7.5 3c1.5 1.5 3 3 3 6"/><path d="M17 37v-5.5M27 37v-5.5M20 30v-3M25 30v-3" stroke="#555" stroke-width="1"/><path d="M12 37h21" stroke="#555" stroke-width="1"/></g></svg>`,
+// ─── Piece Sets ───────────────────────────────────────────────
+const PIECE_BASE = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+const pieceUrl = name => PIECE_BASE + encodeURIComponent(name);
+const imgPiece = (url, alt) => `<img src="${url}" alt="${alt}" draggable="false" referrerpolicy="no-referrer">`;
+
+const PIECE_SETS = {
+  staunton: {
+    wP: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round"><path d="M22.5 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M14 29.5c0-4.5 2.5-8 8.5-8s8.5 3.5 8.5 8h-17z"/><path d="M11.5 37c0 1.5 1 2.5 2.5 2.5h17c1.5 0 2.5-1 2.5-2.5v-3H11.5v3z"/><path d="M12 34h21" stroke-width="1"/><path d="M18.5 29.5v-8" stroke-width="1.5"/><path d="M26.5 29.5v-8" stroke-width="1.5"/></g></svg>`,
+    wR: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-4h21v4H12z"/><path d="M11 14V9h4v2h5V9h5v2h5V9h4v5"/><path d="M34 14l-3 3H14l-3-3h23z"/><path d="M31 17v15H14V17h17z"/><path d="M34 36H11" stroke-width="1"/></g></svg>`,
+    wN: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path d="M24 18c.38 5.12-4 7-7 5-3.44-.95-2.85-3.68-1-6.5.5-.75 3.5-3 4.5-4.5-1.5 2.5 0 5 3.5 6z"/><path d="M9.5 25.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#333" stroke="#333" stroke-width="1"/><path d="M15 15.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#333" stroke="#333" stroke-width="1"/><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-2h21v2H12z"/></g></svg>`,
+    wB: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.46 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" stroke-width="1"/></g></svg>`,
+    wQ: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 26c8.5-8.5 25-8.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L8 14l2 12z"/><path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-3.5-18.5-3.5-27 0z"/><path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c4-1.5 17-1.5 21 0" stroke-width="1"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="9" r="2"/><circle cx="22.5" cy="8" r="2"/><circle cx="31" cy="9" r="2"/><circle cx="39" cy="12" r="2"/></g></svg>`,
+    wK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6" stroke-width="1.5"/><path d="M20 8h5" stroke-width="1.5"/><path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5z"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0l1.5-8c-5.5 4-17.5 4-23 0l1.5 8z"/><path d="M11.5 30c5.5-3 15.5-3 22 0"/><path d="M11.5 30l1.5-7.5c0-3 4-7.5 9.5-7.5s9.5 4.5 9.5 7.5l1.5 7.5"/><path d="M11.5 30c0-3 1.5-4.5 3-6 3-2.5 5.5-3 7.5-3s4.5.5 7.5 3c1.5 1.5 3 3 3 6"/><path d="M17 37v-5.5M27 37v-5.5M20 30v-3M25 30v-3" stroke-width="1"/><path d="M12 37h21" stroke-width="1"/></g></svg>`,
+    bP: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round"><path d="M22.5 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M14 29.5c0-4.5 2.5-8 8.5-8s8.5 3.5 8.5 8h-17z"/><path d="M11.5 37c1.5 0 2.5-1 2.5-2.5v-3h17c1.5 0 2.5 1 2.5 2.5v3h-22z"/><path d="M12 34h21" stroke="#555" stroke-width="1"/><path d="M18.5 29.5v-8" stroke-width="1.5"/><path d="M26.5 29.5v-8" stroke-width="1.5"/></g></svg>`,
+    bR: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-4h21v4H12z"/><path d="M11 14V9h4v2h5V9h5v2h5V9h4v5"/><path d="M34 14l-3 3H14l-3-3h23z"/><path d="M31 17v15H14V17h17z"/><path d="M34 36H11" stroke="#555" stroke-width="1"/></g></svg>`,
+    bN: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path d="M24 18c.38 5.12-4 7-7 5-3.44-.95-2.85-3.68-1-6.5.5-.75 3.5-3 4.5-4.5-1.5 2.5 0 5 3.5 6z"/><path d="M9.5 25.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#111" stroke="#111" stroke-width="1"/><path d="M15 15.5a.5.5 0 1 0 1 0 .5.5 0 1 0-1 0z" fill="#111" stroke="#111" stroke-width="1"/><path d="M9 39h27v-3H9v3z"/><path d="M12 36v-2h21v2H12z"/></g></svg>`,
+    bB: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.46 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" stroke-width="1"/></g></svg>`,
+    bQ: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 26c8.5-8.5 25-8.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L8 14l2 12z"/><path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-3.5-18.5-3.5-27 0z"/><path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c4-1.5 17-1.5 21 0" stroke-width="1"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="9" r="2"/><circle cx="22.5" cy="8" r="2"/><circle cx="31" cy="9" r="2"/><circle cx="39" cy="12" r="2"/></g></svg>`,
+    bK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6" stroke-width="1.5"/><path d="M20 8h5" stroke-width="1.5"/><path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5z"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0l1.5-8c-5.5 4-17.5 4-23 0l1.5 8z"/><path d="M11.5 30c5.5-3 15.5-3 22 0"/><path d="M11.5 30l1.5-7.5c0-3 4-7.5 9.5-7.5s9.5 4.5 9.5 7.5l1.5 7.5"/><path d="M11.5 30c0-3 1.5-4.5 3-6 3-2.5 5.5-3 7.5-3s4.5.5 7.5 3c1.5 1.5 3 3 3 6"/><path d="M17 37v-5.5M27 37v-5.5M20 30v-3M25 30v-3" stroke="#555" stroke-width="1"/><path d="M12 37h21" stroke="#555" stroke-width="1"/></g></svg>`,
+  },
+  cburnett: {
+    wP: imgPiece(pieceUrl('Chess_plt45.svg'), 'White pawn'),
+    wR: imgPiece(pieceUrl('Chess_rlt45.svg'), 'White rook'),
+    wN: imgPiece(pieceUrl('Chess_nlt45.svg'), 'White knight'),
+    wB: imgPiece(pieceUrl('Chess_blt45.svg'), 'White bishop'),
+    wQ: imgPiece(pieceUrl('Chess_qlt45.svg'), 'White queen'),
+    wK: imgPiece(pieceUrl('Chess_klt45.svg'), 'White king'),
+    bP: imgPiece(pieceUrl('Chess_pdt45.svg'), 'Black pawn'),
+    bR: imgPiece(pieceUrl('Chess_rdt45.svg'), 'Black rook'),
+    bN: imgPiece(pieceUrl('Chess_ndt45.svg'), 'Black knight'),
+    bB: imgPiece(pieceUrl('Chess_bdt45.svg'), 'Black bishop'),
+    bQ: imgPiece(pieceUrl('Chess_qdt45.svg'), 'Black queen'),
+    bK: imgPiece(pieceUrl('Chess_kdt45.svg'), 'Black king'),
+  },
+  merida: {
+    wP: imgPiece(pieceUrl('Chess white pawn.svg'), 'White pawn'),
+    wR: imgPiece(pieceUrl('Chess white rook.svg'), 'White rook'),
+    wN: imgPiece(pieceUrl('Chess white knight.svg'), 'White knight'),
+    wB: imgPiece(pieceUrl('Chess white bishop.svg'), 'White bishop'),
+    wQ: imgPiece(pieceUrl('Chess white queen.svg'), 'White queen'),
+    wK: imgPiece(pieceUrl('Chess white king.svg'), 'White king'),
+    bP: imgPiece(pieceUrl('Chess black pawn.svg'), 'Black pawn'),
+    bR: imgPiece(pieceUrl('Chess black rook.svg'), 'Black rook'),
+    bN: imgPiece(pieceUrl('Chess black knight.svg'), 'Black knight'),
+    bB: imgPiece(pieceUrl('Chess black bishop.svg'), 'Black bishop'),
+    bQ: imgPiece(pieceUrl('Chess black queen.svg'), 'Black queen'),
+    bK: imgPiece(pieceUrl('Chess black king.svg'), 'Black king'),
+  }
 };
+
+function getPieceMarkup(key) {
+  return PIECE_SETS[currentPieceSet]?.[key] || PIECE_SETS.staunton?.[key] || '';
+}
 
 // ─── Board Themes ─────────────────────────────────────────────
 const BOARD_THEMES = {
@@ -411,8 +502,62 @@ let isThinking       = false;
 let pendingPromotion = null;
 let moveHistory      = [];
 let currentTheme     = 'classic';
+let currentBoardSize = 520;
+let currentPieceSet  = 'staunton';
+let timeControl      = 'unlimited';
+let clockState       = { w: Infinity, b: Infinity };
+let clockTurn        = null;
+let clockStartedAt   = null;
+let clockTimer       = null;
 let gameActive       = false;
 
+// ─── Sound ────────────────────────────────────────────────────
+const SOUND_URLS = {
+  move:    ['https://lichess1.org/assets/sound/standard/Move.ogg',    'https://lichess1.org/assets/sound/standard/Move.mp3',    'https://lichess.org/assets/sound/standard/Move.ogg'],
+  capture: ['https://lichess1.org/assets/sound/standard/Capture.ogg', 'https://lichess1.org/assets/sound/standard/Capture.mp3', 'https://lichess.org/assets/sound/standard/Capture.ogg'],
+  check:   ['https://lichess1.org/assets/sound/standard/Check.ogg',    'https://lichess1.org/assets/sound/standard/Check.mp3',    'https://lichess.org/assets/sound/standard/Check.ogg'],
+  castle:  ['https://lichess1.org/assets/sound/standard/Castle.ogg',   'https://lichess1.org/assets/sound/standard/Castle.mp3',   'https://lichess.org/assets/sound/standard/Castle.ogg'],
+  promote: ['https://lichess1.org/assets/sound/standard/Promote.ogg',  'https://lichess1.org/assets/sound/standard/Promote.mp3',  'https://lichess.org/assets/sound/standard/Promote.ogg'],
+};
+
+const sounds = {};
+function makeSound(urls) {
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.volume = 0.6;
+  for (const url of urls) {
+    const source = document.createElement('source');
+    source.src = url;
+    audio.appendChild(source);
+  }
+  return audio;
+}
+Object.entries(SOUND_URLS).forEach(([name, urls]) => {
+  sounds[name] = makeSound(urls);
+});
+function primeSounds() {
+  Object.values(sounds).forEach(audio => {
+    try { audio.load(); } catch (e) {}
+  });
+}
+document.addEventListener('pointerdown', primeSounds, { once: true, passive: true });
+
+function playSound(name) {
+  const audio = sounds[name];
+  if (!audio) return;
+  try {
+    const clone = audio.cloneNode(true);
+    clone.volume = audio.volume;
+    const p = clone.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (e) {
+    try {
+      audio.currentTime = 0;
+      const p = audio.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (err) {}
+  }
+}
 // ─── Resign ───────────────────────────────────────────────────
 function askResign() {
   if (!gameActive || game.game_over()) return;
@@ -426,6 +571,7 @@ function confirmResign() {
   gameActive = false;
   document.getElementById('resign-btn').disabled = true;
   isThinking = false;
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
 
   const dot  = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
@@ -449,6 +595,157 @@ function setBoardTheme(el) {
   document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
   el.classList.add('active'); currentTheme = el.dataset.theme;
   applyTheme(currentTheme); renderBoard();
+}
+
+function setPieceSet(btn) {
+  document.querySelectorAll('[data-piece-set]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentPieceSet = btn.dataset.pieceSet;
+  renderBoard();
+  updateCaptured();
+  updatePromotionPreview();
+}
+
+function setTimeControl(btn) {
+  document.querySelectorAll('[data-time-control]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  timeControl = btn.dataset.timeControl;
+  newGame();
+}
+
+function setBoardSize(btn) {
+  document.querySelectorAll('[data-board-size]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentBoardSize = parseInt(btn.dataset.boardSize, 10) || 520;
+  document.documentElement.style.setProperty('--board-size', currentBoardSize + 'px');
+  renderBoard();
+}
+
+
+function formatClock(ms) {
+  if (!Number.isFinite(ms)) return '∞';
+  const safe = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function getClockConfig() {
+  const configs = {
+    unlimited: { initial: Infinity, increment: 0 },
+    '1+0': { initial: 60_000, increment: 0 },
+    '3+2': { initial: 180_000, increment: 2_000 },
+    '5+0': { initial: 300_000, increment: 0 },
+    '10+0': { initial: 600_000, increment: 0 },
+  };
+  return configs[timeControl] || configs.unlimited;
+}
+
+function resetClockDisplay() {
+  const you = document.getElementById('clock-you');
+  const bot = document.getElementById('clock-bot');
+  if (you) you.textContent = '∞';
+  if (bot) bot.textContent = '∞';
+}
+
+function setupClocks() {
+  if (clockTimer) {
+    clearInterval(clockTimer);
+    clockTimer = null;
+  }
+  const cfg = getClockConfig();
+  clockState = { w: cfg.initial, b: cfg.initial };
+  clockTurn = cfg.initial === Infinity ? null : game.turn();
+  clockStartedAt = cfg.initial === Infinity ? null : Date.now();
+  if (cfg.initial !== Infinity) {
+    clockTimer = setInterval(tickClock, 200);
+  }
+  updateClockDisplay();
+}
+
+function stopClock(side) {
+  if (!Number.isFinite(clockState[side]) || clockStartedAt === null || clockTurn !== side) return;
+  const elapsed = Date.now() - clockStartedAt;
+  clockState[side] -= elapsed;
+  clockStartedAt = null;
+  clockTurn = null;
+}
+
+function startClock(side) {
+  const cfg = getClockConfig();
+  if (cfg.initial === Infinity) return;
+  clockTurn = side;
+  clockStartedAt = Date.now();
+}
+
+function applyClockIncrement(side) {
+  const cfg = getClockConfig();
+  if (!Number.isFinite(clockState[side])) return;
+  clockState[side] += cfg.increment;
+}
+
+function updateClockDisplay() {
+  const you = document.getElementById('clock-you');
+  const bot = document.getElementById('clock-bot');
+  if (!you || !bot) return;
+  const now = Date.now();
+  const cfg = getClockConfig();
+  let white = clockState.w;
+  let black = clockState.b;
+  if (cfg.initial !== Infinity && clockStartedAt !== null && clockTurn) {
+    const elapsed = now - clockStartedAt;
+    if (clockTurn === 'w') white -= elapsed; else black -= elapsed;
+  }
+  you.textContent = formatClock(playerColor === 'w' ? white : black);
+  bot.textContent = formatClock(playerColor === 'w' ? black : white);
+  const lowYou = Number.isFinite(playerColor === 'w' ? white : black) && (playerColor === 'w' ? white : black) <= 30000;
+  const lowBot = Number.isFinite(playerColor === 'w' ? black : white) && (playerColor === 'w' ? black : white) <= 30000;
+  you.classList.toggle('low', lowYou);
+  bot.classList.toggle('low', lowBot);
+}
+
+function tickClock() {
+  if (!gameActive || game.game_over()) {
+    updateClockDisplay();
+    return;
+  }
+  const cfg = getClockConfig();
+  if (cfg.initial === Infinity || !clockTurn || clockStartedAt === null) {
+    updateClockDisplay();
+    return;
+  }
+  const remaining = clockState[clockTurn] - (Date.now() - clockStartedAt);
+  if (remaining <= 0) {
+    clockState[clockTurn] = 0;
+    updateClockDisplay();
+    endGameOnTime(clockTurn);
+    return;
+  }
+  updateClockDisplay();
+}
+
+function endGameOnTime(loserSide) {
+  if (!gameActive) return;
+  gameActive = false;
+  isThinking = false;
+  document.getElementById('resign-btn').disabled = true;
+  if (clockTimer) {
+    clearInterval(clockTimer);
+    clockTimer = null;
+  }
+  const winner = loserSide === 'w' ? 'black' : 'white';
+  document.getElementById('status-dot').classList.add('gameover');
+  document.getElementById('status-text').textContent = `${loserSide === playerColor ? 'You' : 'Bot'} ran out of time.`;
+  document.getElementById('overlay-icon').textContent = loserSide === playerColor ? '⏰' : '♛';
+  document.getElementById('overlay-title').textContent = 'TIME';
+  document.getElementById('overlay-sub').textContent = loserSide === playerColor ? 'Your clock reached zero.' : 'The bot’s clock reached zero.';
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+  document.getElementById('game-overlay').classList.add('show');
+}
+
+function updatePromotionPreview() {
+  if (!document.getElementById('promotion-modal').classList.contains('show')) return;
+  showPromotionModal();
 }
 
 // ─── Coords ───────────────────────────────────────────────────
@@ -491,16 +788,28 @@ function renderBoard() {
       cell.className = 'square ' + (isLight ? 'light' : 'dark');
       cell.dataset.sq = sq;
 
+      // Add Drag & Drop listeners to the square
+      cell.addEventListener('dragover', onDragOver);
+      cell.addEventListener('drop', onDrop);
+
       if (lastMove && (sq === lastMove.from || sq === lastMove.to)) cell.classList.add('last-move');
       if (selectedSquare === sq) cell.classList.add('selected');
       if (validMoves.some(m => m.to === sq && !game.get(sq))) cell.classList.add('valid-move');
-      if (validMoves.some(m => m.to === sq &&  game.get(sq))) cell.classList.add('valid-capture');
+      if (validMoves.some(m => m.to === sq && game.get(sq))) cell.classList.add('valid-capture');
 
       const piece = game.get(sq);
       if (piece) {
         const key = piece.color + piece.type.toUpperCase();
-        const pEl = document.createElement('div'); pEl.className = 'piece';
-        pEl.innerHTML = SVG_PIECES[key] || '';
+        const pEl = document.createElement('div');
+        pEl.className = 'piece';
+        pEl.innerHTML = getPieceMarkup(key) || '';
+        
+        // Make piece draggable if it's the player's turn and their piece
+        if (gameActive && piece.color === playerColor && !isThinking) {
+          pEl.setAttribute('draggable', 'true');
+          pEl.addEventListener('dragstart', (e) => onDragStart(e, sq));
+        }
+
         if (piece.type === 'k' && game.in_check() && piece.color === game.turn()) cell.classList.add('in-check');
         cell.appendChild(pEl);
       }
@@ -510,10 +819,74 @@ function renderBoard() {
   }
 }
 
+// ─── Drag Handlers ────────────────────────────────────────────
+function onDragStart(e, sq) {
+  if (isThinking || !gameActive || game.turn() !== playerColor) {
+    e.preventDefault();
+    return;
+  }
+  selectedSquare = sq;
+  validMoves = game.moves({ square: sq, verbose: true });
+  
+  e.dataTransfer.setData('text/plain', sq);
+  e.dataTransfer.effectAllowed = 'move';
+  
+  // Minimal delay to ensure highlights render before the drag begins
+  setTimeout(() => renderBoard(), 0);
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const from = e.dataTransfer.getData('text/plain');
+  const to = e.currentTarget.dataset.sq;
+
+  if (game.turn() !== playerColor) {
+    return;
+  }
+
+  const move = validMoves.find(m => m.from === from && m.to === to);
+
+  if (move) {
+    if (move.flags.includes('p')) {
+      pendingPromotion = { from, to };
+      showPromotionModal();
+    } else {
+      makePlayerMove(from, to);
+    }
+  } else {
+    selectedSquare = null;
+    validMoves = [];
+    renderBoard();
+  }
+}
+
 // ─── Click ────────────────────────────────────────────────────
 function onSquareClick(sq) {
-  if (isThinking || game.game_over() || !gameActive) return;
-  if (game.turn() !== playerColor) return;
+  if (game.game_over() || !gameActive) return;
+
+  if (game.turn() !== playerColor) {
+    if (!isThinking) return;
+    const piece = game.get(sq);
+    if (selectedSquare && selectedSquare !== sq) {
+      selectedSquare = null;
+      validMoves = [];
+      renderBoard();
+      return;
+    }
+    if (piece && piece.color === playerColor) {
+      selectedSquare = sq;
+      validMoves = [];
+      renderBoard();
+    }
+    return;
+  }
+
+  if (isThinking) return;
   const piece = game.get(sq);
 
   if (selectedSquare === sq) { selectedSquare = null; validMoves = []; renderBoard(); return; }
@@ -534,13 +907,41 @@ function onSquareClick(sq) {
   } else { selectedSquare = null; validMoves = []; renderBoard(); }
 }
 
+function playMoveSound(moveObj) {
+  if (!moveObj) return;
+  if (game.in_check()) {
+    playSound('check');
+  } else if (moveObj.flags && (moveObj.flags.includes('k') || moveObj.flags.includes('q'))) {
+    playSound('castle');
+  } else if (moveObj.flags && moveObj.flags.includes('p')) {
+    playSound('promote');
+  } else if (moveObj.captured) {
+    playSound('capture');
+  } else {
+    playSound('move');
+  }
+}
+
 function makePlayerMove(from, to, promotion='q') {
-  const moveObj = game.move({ from, to, promotion }); if (!moveObj) return;
+  const moveObj = game.move({ from, to, promotion }); if (!moveObj) return false;
   if (moveObj.captured) capturedByPlayer.push(moveObj.captured);
+  playMoveSound(moveObj);
   lastMove = { from, to }; selectedSquare = null; validMoves = [];
   addMoveToHistory(moveObj, 'player');
-  renderBoard(); updateStatus(); updateHeader();
-  if (!game.game_over()) setTimeout(botMove, 380); else endGame();
+  stopClock(moveObj.color);
+  applyClockIncrement(moveObj.color);
+  isThinking = true;
+  renderBoard(); updateStatus(); updateHeader(); updateClockDisplay();
+  if (!game.game_over()) {
+    startClock(game.turn());
+    setStatusThinking();
+    const delay = game.in_check() ? 1200 : 380;
+    setTimeout(botMove, delay);
+  } else {
+    isThinking = false;
+    endGame();
+  }
+  return true;
 }
 
 // ─── Promotion ────────────────────────────────────────────────
@@ -551,7 +952,7 @@ function showPromotionModal() {
   const typeMap = { Q:'q', R:'r', B:'b', N:'n' };
   opts.forEach(key => {
     const el = document.createElement('div'); el.className = 'promo-piece';
-    el.innerHTML = SVG_PIECES[key];
+    el.innerHTML = getPieceMarkup(key);
     el.onclick = () => {
       modal.classList.remove('show');
       if (pendingPromotion) { makePlayerMove(pendingPromotion.from, pendingPromotion.to, typeMap[key[1]]); pendingPromotion = null; }
@@ -593,6 +994,7 @@ function botMove() {
   if(game.game_over()||!gameActive){ isThinking=false; return; }
   isThinking=true; setStatusThinking();
   setTimeout(()=>{
+    if (!gameActive || game.game_over()) { isThinking=false; return; }
     const moves=game.moves({verbose:true}); if(!moves.length){isThinking=false;return;}
     const botIsMax=(playerColor==='b');
     let bestMove=null,bestVal=botIsMax?-Infinity:Infinity;
@@ -600,10 +1002,17 @@ function botMove() {
     if(!bestMove) bestMove=moves[Math.floor(Math.random()*moves.length)];
     const result=game.move(bestMove);
     if(result.captured) capturedByBot.push(result.captured);
+    playMoveSound(result);
     lastMove={from:bestMove.from,to:bestMove.to};
-    addMoveToHistory(result,'bot'); isThinking=false;
-    renderBoard(); updateStatus(); updateHeader();
-    if(game.game_over()) endGame();
+    addMoveToHistory(result,'bot');
+    stopClock(result.color);
+    applyClockIncrement(result.color);
+    isThinking=false;
+    renderBoard(); updateStatus(); updateHeader(); updateClockDisplay();
+    if(!game.game_over()) {
+      startClock(game.turn());
+      if (game.game_over()) endGame();
+    } else endGame();
   },50);
 }
 
@@ -622,21 +1031,25 @@ function updateStatus() {
     text.textContent=game.turn()===playerColor?'Your turn to move.':'Bot is calculating...';
   }
   updateCaptured();
+  updateClockDisplay();
 }
 function setStatusThinking() {
-  document.getElementById('status-dot').classList.add('thinking');
-  document.getElementById('status-text').textContent='Bot is thinking...';
+  const dot = document.getElementById('status-dot');
+  if (dot) dot.classList.add('thinking');
+  const text = document.getElementById('status-text');
+  if (text) text.textContent='Bot is thinking...';
 }
 function updateHeader() {
   document.getElementById('turn-indicator').textContent=game.turn()===playerColor?'YOUR MOVE':'BOT THINKING';
   document.getElementById('move-counter').textContent='MOVE '+(Math.floor(game.history().length/2)+1);
+  updateClockDisplay();
 }
 function updateCaptured() {
   const el=document.getElementById('captured-pieces'); el.innerHTML='';
   [...capturedByPlayer,...capturedByBot].forEach(type=>{
     const key=(playerColor==='w'?'b':'w')+type.toUpperCase();
     const fallbackKey=(playerColor==='w'?'w':'b')+type.toUpperCase();
-    const svg=SVG_PIECES[key]||SVG_PIECES[fallbackKey]||'';
+    const svg=getPieceMarkup(key)||getPieceMarkup(fallbackKey)||'';
     if(svg){ const d=document.createElement('div'); d.innerHTML=svg; el.appendChild(d); }
   });
 }
@@ -668,6 +1081,7 @@ function endGame() {
     document.getElementById('overlay-title').textContent='DRAW';
     document.getElementById('overlay-sub').textContent=game.in_stalemate()?'Stalemate — no legal moves.':'The game ended in a draw.';
   }
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
   document.getElementById('game-overlay').classList.add('show');
 }
 function closeOverlay() { document.getElementById('game-overlay').classList.remove('show'); }
@@ -685,7 +1099,7 @@ function setColor(btn) {
 }
 function newGame() {
   game=new Chess(); selectedSquare=null; validMoves=[]; lastMove=null;
-  capturedByPlayer=[]; capturedByBot=[]; isThinking=false; pendingPromotion=null; moveHistory=[];
+  capturedByPlayer=[]; capturedByBot=[]; isThinking=playerColor==='b'; pendingPromotion=null; moveHistory=[];
   gameActive=true;
   document.getElementById('resign-btn').disabled=false;
   document.getElementById('moves-list').innerHTML='<div class="no-moves-placeholder" style="color:var(--text-dim);font-size:10px;letter-spacing:.1em;padding:4px;">No moves yet.</div>';
@@ -693,11 +1107,22 @@ function newGame() {
   const pip=document.querySelector('#player-name-display .color-pip');
   pip.className='color-pip '+(playerColor==='w'?'pip-w':'pip-b');
   document.getElementById('player-side-label').textContent=playerColor==='w'?'PLAYING AS WHITE':'PLAYING AS BLACK';
-  applyTheme(currentTheme); renderBoard(); updateStatus(); updateHeader(); closeOverlay();
-  if(playerColor==='b') setTimeout(botMove,600);
+  document.documentElement.style.setProperty('--board-size', currentBoardSize + 'px');
+  applyTheme(currentTheme);
+  setupClocks();
+  renderBoard(); updateStatus(); updateHeader(); closeOverlay();
+  if(playerColor==='b') {
+    startClock(game.turn());
+    setStatusThinking();
+    setTimeout(botMove,600);
+  } else {
+    startClock(game.turn());
+  }
 }
 
+
 // ─── Init ─────────────────────────────────────────────────────
+document.documentElement.style.setProperty('--board-size', currentBoardSize + 'px');
 newGame();
 </script>
 </body>

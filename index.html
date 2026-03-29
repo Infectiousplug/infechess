@@ -107,13 +107,46 @@
   .swatch.active { border-color:var(--accent); }
   .swatch div { width:100%; height:100%; }
 
+  .piece-set-swatches { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+  .piece-set-btn {
+    padding:8px 6px 7px; background:var(--surface); border:1px solid var(--border);
+    cursor:pointer; transition:all .17s; display:flex; flex-direction:column; gap:6px; align-items:stretch;
+    min-width:0;
+  }
+  .piece-set-btn:hover { border-color:var(--accent); }
+  .piece-set-btn.active { border-color:var(--accent); background:rgba(201,168,92,.08); }
+  .piece-set-preview {
+    display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:2px;
+    aspect-ratio:1 / 1; padding:2px; background:var(--surface2); border-radius:3px; overflow:hidden;
+  }
+  .piece-set-mini { display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .piece-set-mini.light { background:rgba(255,255,255,.05); }
+  .piece-set-mini.dark { background:rgba(0,0,0,.12); }
+  .piece-set-mini img, .piece-set-mini svg { width:80%; height:80%; display:block; object-fit:contain; pointer-events:none; }
+  .piece-set-label { font-size:9px; text-align:center; letter-spacing:.12em; color:var(--text-dim); text-transform:uppercase; }
+
   /* ── BOARD ── */
   .board-container { display:flex; flex-direction:column; align-items:center; flex-shrink:0; }
   .coord-row { display:flex; width:var(--board-size); padding-left:20px; height:15px; }
   .coord-letter { flex:1; text-align:center; font-size:9px; color:var(--text-dim); line-height:15px; }
-  .board-and-ranks { display:flex; align-items:stretch; }
+  .board-and-ranks { display:flex; align-items:stretch; position:relative; }
   .rank-col { display:flex; flex-direction:column; width:20px; justify-content:space-around; }
   .coord-rank { font-size:9px; color:var(--text-dim); text-align:right; padding-right:4px; line-height:1; }
+
+  /* Drag-to-resize handle — sits at bottom-right corner of the board */
+  #board-resize-handle {
+    position:absolute;
+    right:0; bottom:0;
+    width:20px; height:20px;
+    cursor:nwse-resize;
+    z-index:10;
+    /* Triangle grip in corner */
+    background: linear-gradient(135deg, transparent 40%, var(--accent-dim) 40%);
+    opacity:0.55;
+    transition:opacity .15s;
+  }
+  #board-resize-handle:hover { opacity:1; }
+  body.board-resizing { cursor:nwse-resize !important; user-select:none !important; }
 
   #chessboard {
     width:var(--board-size); height:var(--board-size);
@@ -132,7 +165,25 @@
   .square.light { background:var(--light-sq); }
   .square.dark  { background:var(--dark-sq); }
   .square.selected { outline:3px solid rgba(201,168,92,.9); outline-offset:-3px; }
-  .square.last-move { filter:brightness(1.18); }
+  /* Last-move highlight — gold tint overlay, visible on all board themes */
+  .square.last-move::before {
+    content:''; position:absolute; inset:0;
+    background:rgba(205,188,60,.42);
+    pointer-events:none; z-index:0;
+  }
+  /* Premove highlight — blue tint */
+  .square.premove-from::before {
+    content:''; position:absolute; inset:0;
+    background:rgba(80,120,220,.45);
+    pointer-events:none; z-index:0;
+  }
+  .square.premove-to::before {
+    content:''; position:absolute; inset:0;
+    background:rgba(80,120,220,.30);
+    pointer-events:none; z-index:0;
+  }
+  .square.premove-to.valid-move::after { background:rgba(80,120,220,.5); }
+  .square.premove-to.valid-capture::after { border-color:rgba(80,120,220,.6); }
   .square.in-check  { background:var(--check) !important; }
   .square.valid-move::after {
     content:''; position:absolute; width:33%; height:33%;
@@ -309,16 +360,6 @@
       </div>
     </div>
 
-
-    <div>
-      <div class="panel-label">Piece Set</div>
-      <div class="btn-col">
-        <button class="opt-btn active" data-piece-set="staunton" onclick="setPieceSet(this)">STAUNTON <span class="badge">S1</span></button>
-        <button class="opt-btn" data-piece-set="cburnett" onclick="setPieceSet(this)">CBURNETT <span class="badge">LI</span></button>
-        <button class="opt-btn" data-piece-set="merida" onclick="setPieceSet(this)">MERIDA <span class="badge">M3</span></button>
-      </div>
-    </div>
-
     <div>
       <div class="panel-label">Time Control</div>
       <div class="btn-col">
@@ -330,19 +371,6 @@
       </div>
     </div>
 
-    <div>
-      <div class="panel-label">Board Size</div>
-      <div class="btn-col">
-        <button class="opt-btn" data-board-size="440" onclick="setBoardSize(this)">SMALL <span class="badge">440</span></button>
-        <button class="opt-btn active" data-board-size="520" onclick="setBoardSize(this)">STANDARD <span class="badge">520</span></button>
-        <button class="opt-btn" data-board-size="560" onclick="setBoardSize(this)">LARGE <span class="badge">560</span></button>
-        <button class="opt-btn" data-board-size="640" onclick="setBoardSize(this)">XL <span class="badge">640</span></button>
-        <button class="opt-btn" data-board-size="720" onclick="setBoardSize(this)">XXL <span class="badge">720</span></button>
-      </div>
-    </div>
-
-    <button class="action-btn new-game-btn" onclick="newGame()">New Game</button>
-    <button class="action-btn resign-btn" id="resign-btn" onclick="askResign()" disabled>Resign</button>
   </aside>
 
   <section class="board-container">
@@ -350,6 +378,7 @@
     <div class="board-and-ranks">
       <div class="rank-col" id="ranks-left"></div>
       <div id="chessboard"></div>
+      <div id="board-resize-handle" title="Drag to resize board"></div>
     </div>
     <div class="coord-row" id="coords-bottom"></div>
   </section>
@@ -389,6 +418,27 @@
         <div class="swatch"        data-theme="rose"     title="Rose"        onclick="setBoardTheme(this)"><div style="background:#f5ddd6"></div><div style="background:#c27474"></div><div style="background:#c27474"></div><div style="background:#f5ddd6"></div></div>
       </div>
     </div>
+
+    <div>
+      <div class="panel-label">Piece Set</div>
+      <div class="piece-set-swatches">
+        <button class="piece-set-btn active" data-piece-set="staunton" onclick="setPieceSet(this)" type="button">
+          <div class="piece-set-preview"></div>
+          <div class="piece-set-label">Staunton</div>
+        </button>
+        <button class="piece-set-btn" data-piece-set="cburnett" onclick="setPieceSet(this)" type="button">
+          <div class="piece-set-preview"></div>
+          <div class="piece-set-label">CBurnett</div>
+        </button>
+        <button class="piece-set-btn" data-piece-set="merida" onclick="setPieceSet(this)" type="button">
+          <div class="piece-set-preview"></div>
+          <div class="piece-set-label">Merida</div>
+        </button>
+      </div>
+    </div>
+
+    <button class="action-btn new-game-btn" onclick="newGame()">New Game</button>
+    <button class="action-btn resign-btn" id="resign-btn" onclick="askResign()" disabled>Resign</button>
   </aside>
 </main>
 
@@ -426,9 +476,84 @@
 
 <script>
 // ─── Piece Sets ───────────────────────────────────────────────
-const PIECE_BASE = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
-const pieceUrl = name => PIECE_BASE + encodeURIComponent(name);
-const imgPiece = (url, alt) => `<img src="${url}" alt="${alt}" draggable="false" referrerpolicy="no-referrer">`;
+// External pieces are pre-fetched and cached as blob URLs so they
+// work regardless of CORS restrictions when opened from file://
+const _pieceBlobs = {};   // key → blob URL
+const _pieceFallback = {}; // key → staunton SVG markup (filled after PIECE_SETS is defined)
+
+// Direct upload.wikimedia.org paths (no redirect, CORS-safe)
+const WM = 'https://upload.wikimedia.org/wikipedia/commons/';
+const _cburnettPaths = {
+  wK:'4/42/Chess_klt45.svg', wQ:'1/15/Chess_qlt45.svg',
+  wR:'7/72/Chess_rlt45.svg', wB:'b/b1/Chess_blt45.svg',
+  wN:'7/70/Chess_nlt45.svg', wP:'4/45/Chess_plt45.svg',
+  bK:'f/f0/Chess_kdt45.svg', bQ:'4/47/Chess_qdt45.svg',
+  bR:'f/ff/Chess_rdt45.svg', bB:'9/98/Chess_bdt45.svg',
+  bN:'e/ef/Chess_ndt45.svg', bP:'c/c7/Chess_pdt45.svg'
+};
+// Merida (classic Wikipedia style) – direct paths
+const _meridaPaths = {
+  wK:'3/3b/Chess_klt60.svg', wQ:'9/9a/Chess_qlt60.svg',
+  wR:'4/48/Chess_rlt60.svg', wB:'b/b5/Chess_blt60.svg',
+  wN:'2/28/Chess_nlt60.svg', wP:'0/05/Chess_plt60.svg',
+  bK:'f/f0/Chess_kdt60.svg', bQ:'a/af/Chess_qdt60.svg',
+  bR:'5/5c/Chess_rdt60.svg', bB:'b/b3/Chess_bdt60.svg',
+  bN:'9/9a/Chess_ndt60.svg', bP:'c/c7/Chess_pdt60.svg'
+};
+
+async function _fetchBlob(url) {
+  const r = await fetch(url, { mode:'cors', cache:'force-cache' });
+  if (!r.ok) throw new Error(r.status);
+  return URL.createObjectURL(await r.blob());
+}
+
+async function preloadExternalPieces() {
+  const jobs = [];
+  for (const [key, path] of Object.entries(_cburnettPaths)) {
+    jobs.push(_fetchBlob(WM + path)
+      .then(u => { _pieceBlobs['cburnett_' + key] = u; })
+      .catch(() => {}));
+  }
+  for (const [key, path] of Object.entries(_meridaPaths)) {
+    jobs.push(_fetchBlob(WM + path)
+      .then(u => { _pieceBlobs['merida_' + key] = u; })
+      .catch(() => {}));
+  }
+  await Promise.allSettled(jobs);
+}
+
+function _pieceRemoteUrl(set, key) {
+  if (set === 'cburnett') return _cburnettPaths[key] ? WM + _cburnettPaths[key] : '';
+  if (set === 'merida') return `https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/merida/${key}.svg`;
+  return '';
+}
+
+function _pieceMarkupForSet(set, key) {
+  if (set === 'staunton') return PIECE_SETS.staunton[key] || '';
+  const blob = _pieceBlobs[set + '_' + key];
+  if (blob) return `<img src="${blob}" draggable="false" style="width:100%;height:100%;object-fit:contain;">`;
+  const url = _pieceRemoteUrl(set, key);
+  if (url) return `<img src="${url}" draggable="false" style="width:100%;height:100%;object-fit:contain;" referrerpolicy="no-referrer">`;
+  return PIECE_SETS.staunton[key] || '';
+}
+
+function getPieceMarkup(key) {
+  return _pieceMarkupForSet(currentPieceSet, key);
+}
+
+function renderPieceSetPreviews() {
+  const theme = BOARD_THEMES[currentTheme] || BOARD_THEMES.classic;
+  document.querySelectorAll('[data-piece-set]').forEach(btn => {
+    const preview = btn.querySelector('.piece-set-preview');
+    if (!preview) return;
+    const set = btn.dataset.pieceSet;
+    const shades = [theme.light, theme.dark, theme.dark, theme.light];
+    preview.innerHTML = ['wK','bK','wQ','bQ'].map((pieceKey, i) => {
+      const shade = i % 2 === 0 ? 'light' : 'dark';
+      return `<div class="piece-set-mini ${shade}" style="background:${shades[i]}">${_pieceMarkupForSet(set, pieceKey)}</div>`;
+    }).join('');
+  });
+}
 
 const PIECE_SETS = {
   staunton: {
@@ -445,39 +570,11 @@ const PIECE_SETS = {
     bQ: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 26c8.5-8.5 25-8.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L8 14l2 12z"/><path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-3.5-18.5-3.5-27 0z"/><path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c4-1.5 17-1.5 21 0" stroke-width="1"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="9" r="2"/><circle cx="22.5" cy="8" r="2"/><circle cx="31" cy="9" r="2"/><circle cx="39" cy="12" r="2"/></g></svg>`,
     bK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#2a2a2a" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6" stroke-width="1.5"/><path d="M20 8h5" stroke-width="1.5"/><path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5z"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0l1.5-8c-5.5 4-17.5 4-23 0l1.5 8z"/><path d="M11.5 30c5.5-3 15.5-3 22 0"/><path d="M11.5 30l1.5-7.5c0-3 4-7.5 9.5-7.5s9.5 4.5 9.5 7.5l1.5 7.5"/><path d="M11.5 30c0-3 1.5-4.5 3-6 3-2.5 5.5-3 7.5-3s4.5.5 7.5 3c1.5 1.5 3 3 3 6"/><path d="M17 37v-5.5M27 37v-5.5M20 30v-3M25 30v-3" stroke="#555" stroke-width="1"/><path d="M12 37h21" stroke="#555" stroke-width="1"/></g></svg>`,
   },
-  cburnett: {
-    wP: imgPiece(pieceUrl('Chess_plt45.svg'), 'White pawn'),
-    wR: imgPiece(pieceUrl('Chess_rlt45.svg'), 'White rook'),
-    wN: imgPiece(pieceUrl('Chess_nlt45.svg'), 'White knight'),
-    wB: imgPiece(pieceUrl('Chess_blt45.svg'), 'White bishop'),
-    wQ: imgPiece(pieceUrl('Chess_qlt45.svg'), 'White queen'),
-    wK: imgPiece(pieceUrl('Chess_klt45.svg'), 'White king'),
-    bP: imgPiece(pieceUrl('Chess_pdt45.svg'), 'Black pawn'),
-    bR: imgPiece(pieceUrl('Chess_rdt45.svg'), 'Black rook'),
-    bN: imgPiece(pieceUrl('Chess_ndt45.svg'), 'Black knight'),
-    bB: imgPiece(pieceUrl('Chess_bdt45.svg'), 'Black bishop'),
-    bQ: imgPiece(pieceUrl('Chess_qdt45.svg'), 'Black queen'),
-    bK: imgPiece(pieceUrl('Chess_kdt45.svg'), 'Black king'),
-  },
-  merida: {
-    wP: imgPiece(pieceUrl('Chess white pawn.svg'), 'White pawn'),
-    wR: imgPiece(pieceUrl('Chess white rook.svg'), 'White rook'),
-    wN: imgPiece(pieceUrl('Chess white knight.svg'), 'White knight'),
-    wB: imgPiece(pieceUrl('Chess white bishop.svg'), 'White bishop'),
-    wQ: imgPiece(pieceUrl('Chess white queen.svg'), 'White queen'),
-    wK: imgPiece(pieceUrl('Chess white king.svg'), 'White king'),
-    bP: imgPiece(pieceUrl('Chess black pawn.svg'), 'Black pawn'),
-    bR: imgPiece(pieceUrl('Chess black rook.svg'), 'Black rook'),
-    bN: imgPiece(pieceUrl('Chess black knight.svg'), 'Black knight'),
-    bB: imgPiece(pieceUrl('Chess black bishop.svg'), 'Black bishop'),
-    bQ: imgPiece(pieceUrl('Chess black queen.svg'), 'Black queen'),
-    bK: imgPiece(pieceUrl('Chess black king.svg'), 'Black king'),
-  }
+  cburnett: {},  // loaded async — see preloadExternalPieces()
+  merida:   {},  // loaded async — see preloadExternalPieces()
 };
 
-function getPieceMarkup(key) {
-  return PIECE_SETS[currentPieceSet]?.[key] || PIECE_SETS.staunton?.[key] || '';
-}
+// getPieceMarkup is defined above, before PIECE_SETS
 
 // ─── Board Themes ─────────────────────────────────────────────
 const BOARD_THEMES = {
@@ -510,53 +607,94 @@ let clockTurn        = null;
 let clockStartedAt   = null;
 let clockTimer       = null;
 let gameActive       = false;
+// Premove state
+let premoveFrom      = null;
+let premoveTo        = null;
 
-// ─── Sound ────────────────────────────────────────────────────
-const SOUND_URLS = {
-  move:    ['https://lichess1.org/assets/sound/standard/Move.ogg',    'https://lichess1.org/assets/sound/standard/Move.mp3',    'https://lichess.org/assets/sound/standard/Move.ogg'],
-  capture: ['https://lichess1.org/assets/sound/standard/Capture.ogg', 'https://lichess1.org/assets/sound/standard/Capture.mp3', 'https://lichess.org/assets/sound/standard/Capture.ogg'],
-  check:   ['https://lichess1.org/assets/sound/standard/Check.ogg',    'https://lichess1.org/assets/sound/standard/Check.mp3',    'https://lichess.org/assets/sound/standard/Check.ogg'],
-  castle:  ['https://lichess1.org/assets/sound/standard/Castle.ogg',   'https://lichess1.org/assets/sound/standard/Castle.mp3',   'https://lichess.org/assets/sound/standard/Castle.ogg'],
-  promote: ['https://lichess1.org/assets/sound/standard/Promote.ogg',  'https://lichess1.org/assets/sound/standard/Promote.mp3',  'https://lichess.org/assets/sound/standard/Promote.ogg'],
-};
-
-const sounds = {};
-function makeSound(urls) {
-  const audio = new Audio();
-  audio.preload = 'auto';
-  audio.volume = 0.6;
-  for (const url of urls) {
-    const source = document.createElement('source');
-    source.src = url;
-    audio.appendChild(source);
+// ─── Sound (Web Audio API — no external dependencies) ─────────
+let _audioCtx = null;
+function _getCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
   }
-  return audio;
+  if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
 }
-Object.entries(SOUND_URLS).forEach(([name, urls]) => {
-  sounds[name] = makeSound(urls);
-});
-function primeSounds() {
-  Object.values(sounds).forEach(audio => {
-    try { audio.load(); } catch (e) {}
-  });
+// Unlock AudioContext on first user gesture
+document.addEventListener('pointerdown', () => { try { _getCtx(); } catch(e) {} }, { once:true, passive:true });
+
+// Wooden-click sound: short noise burst shaped by an exponential decay envelope
+function _woodClick(pitch = 1, vol = 0.28) {
+  const ctx = _getCtx(); if (!ctx) return;
+  try {
+    const len  = Math.floor(ctx.sampleRate * 0.12);
+    const buf  = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    const tau  = ctx.sampleRate * 0.018 / pitch;
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / tau);
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    const bpf = ctx.createBiquadFilter();
+    bpf.type = 'bandpass';
+    bpf.frequency.value = 1100 * pitch;
+    bpf.Q.value = 0.9;
+
+    const gain = ctx.createGain();
+    gain.gain.value = vol;
+
+    src.connect(bpf); bpf.connect(gain); gain.connect(ctx.destination);
+    src.start(ctx.currentTime);
+  } catch(e) {}
 }
-document.addEventListener('pointerdown', primeSounds, { once: true, passive: true });
+
+// Simple pitched tone with fast decay
+function _tone(freq, dur, vol = 0.18, type = 'sine', delayMs = 0) {
+  const ctx = _getCtx(); if (!ctx) return;
+  try {
+    const t = ctx.currentTime + delayMs / 1000;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  } catch(e) {}
+}
 
 function playSound(name) {
-  const audio = sounds[name];
-  if (!audio) return;
-  try {
-    const clone = audio.cloneNode(true);
-    clone.volume = audio.volume;
-    const p = clone.play();
-    if (p && typeof p.catch === 'function') p.catch(() => {});
-  } catch (e) {
-    try {
-      audio.currentTime = 0;
-      const p = audio.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch (err) {}
+  switch (name) {
+    case 'move':
+      _woodClick(1.0, 0.28);
+      break;
+    case 'capture':
+      _woodClick(0.65, 0.38);   // heavier thud
+      break;
+    case 'check':
+      _woodClick(1.0, 0.22);
+      _tone(880, 0.12, 0.14, 'sine', 55);
+      break;
+    case 'castle':
+      _woodClick(1.0, 0.25);
+      _woodClick(1.1, 0.20); // second click comes from noise seed offset — use delayMs via tone
+      setTimeout(() => _woodClick(1.1, 0.20), 120);
+      break;
+    case 'promote':
+      [523, 659, 784, 1047].forEach((f, i) => _tone(f, 0.18, 0.18, 'sine', i * 90));
+      break;
   }
+}
+
+function playMoveSound(moveObj) {
+  if (!moveObj) return;
+  if (game.in_check())                                              playSound('check');
+  else if (moveObj.flags && (moveObj.flags.includes('k') || moveObj.flags.includes('q'))) playSound('castle');
+  else if (moveObj.flags && moveObj.flags.includes('p'))           playSound('promote');
+  else if (moveObj.captured)                                        playSound('capture');
+  else                                                              playSound('move');
 }
 // ─── Resign ───────────────────────────────────────────────────
 function askResign() {
@@ -594,7 +732,7 @@ function applyTheme(name) {
 function setBoardTheme(el) {
   document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
   el.classList.add('active'); currentTheme = el.dataset.theme;
-  applyTheme(currentTheme); renderBoard();
+  applyTheme(currentTheme); renderBoard(); renderPieceSetPreviews();
 }
 
 function setPieceSet(btn) {
@@ -604,6 +742,10 @@ function setPieceSet(btn) {
   renderBoard();
   updateCaptured();
   updatePromotionPreview();
+  // If external pieces aren't cached yet, re-render once preload settles
+  if (currentPieceSet !== 'staunton') {
+    preloadExternalPieces().then(() => { renderBoard(); updateCaptured(); renderPieceSetPreviews(); });
+  }
 }
 
 function setTimeControl(btn) {
@@ -613,13 +755,6 @@ function setTimeControl(btn) {
   newGame();
 }
 
-function setBoardSize(btn) {
-  document.querySelectorAll('[data-board-size]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  currentBoardSize = parseInt(btn.dataset.boardSize, 10) || 520;
-  document.documentElement.style.setProperty('--board-size', currentBoardSize + 'px');
-  renderBoard();
-}
 
 
 function formatClock(ms) {
@@ -796,6 +931,9 @@ function renderBoard() {
       if (selectedSquare === sq) cell.classList.add('selected');
       if (validMoves.some(m => m.to === sq && !game.get(sq))) cell.classList.add('valid-move');
       if (validMoves.some(m => m.to === sq && game.get(sq))) cell.classList.add('valid-capture');
+      // Premove highlights
+      if (premoveFrom === sq) cell.classList.add('premove-from');
+      if (premoveTo   === sq) cell.classList.add('premove-to');
 
       const piece = game.get(sq);
       if (piece) {
@@ -869,23 +1007,31 @@ function onDrop(e) {
 function onSquareClick(sq) {
   if (game.game_over() || !gameActive) return;
 
+  // ── BOT'S TURN: premove handling ──────────────────────────
   if (game.turn() !== playerColor) {
     if (!isThinking) return;
     const piece = game.get(sq);
-    if (selectedSquare && selectedSquare !== sq) {
-      selectedSquare = null;
-      validMoves = [];
-      renderBoard();
-      return;
+
+    if (premoveFrom) {
+      if (sq === premoveFrom) {
+        // Cancel premove selection
+        premoveFrom = null; premoveTo = null; renderBoard(); return;
+      }
+      if (piece && piece.color === playerColor) {
+        // Switch premove source to another own piece
+        premoveFrom = sq; premoveTo = null; renderBoard(); return;
+      }
+      // Set destination — store even if not currently legal (premove)
+      premoveTo = sq; renderBoard(); return;
     }
+
     if (piece && piece.color === playerColor) {
-      selectedSquare = sq;
-      validMoves = [];
-      renderBoard();
+      premoveFrom = sq; premoveTo = null; renderBoard();
     }
     return;
   }
 
+  // ── PLAYER'S TURN ─────────────────────────────────────────
   if (isThinking) return;
   const piece = game.get(sq);
 
@@ -907,20 +1053,7 @@ function onSquareClick(sq) {
   } else { selectedSquare = null; validMoves = []; renderBoard(); }
 }
 
-function playMoveSound(moveObj) {
-  if (!moveObj) return;
-  if (game.in_check()) {
-    playSound('check');
-  } else if (moveObj.flags && (moveObj.flags.includes('k') || moveObj.flags.includes('q'))) {
-    playSound('castle');
-  } else if (moveObj.flags && moveObj.flags.includes('p')) {
-    playSound('promote');
-  } else if (moveObj.captured) {
-    playSound('capture');
-  } else {
-    playSound('move');
-  }
-}
+
 
 function makePlayerMove(from, to, promotion='q') {
   const moveObj = game.move({ from, to, promotion }); if (!moveObj) return false;
@@ -1009,6 +1142,28 @@ function botMove() {
     applyClockIncrement(result.color);
     isThinking=false;
     renderBoard(); updateStatus(); updateHeader(); updateClockDisplay();
+
+    // ── Execute premove if one was queued ──
+    if (premoveFrom && premoveTo && !game.game_over() && game.turn() === playerColor) {
+      const pf = premoveFrom, pt = premoveTo;
+      premoveFrom = null; premoveTo = null;
+      const legalMoves = game.moves({ square: pf, verbose: true });
+      const pm = legalMoves.find(m => m.to === pt);
+      if (pm) {
+        setTimeout(() => {
+          if (pm.flags.includes('p')) {
+            pendingPromotion = { from: pf, to: pt };
+            showPromotionModal();
+            renderBoard();
+          } else {
+            makePlayerMove(pf, pt);
+          }
+        }, 80);
+        return; // skip normal clock start; makePlayerMove handles it
+      }
+      renderBoard(); // illegal premove — just refresh board
+    }
+
     if(!game.game_over()) {
       startClock(game.turn());
       if (game.game_over()) endGame();
@@ -1100,6 +1255,7 @@ function setColor(btn) {
 function newGame() {
   game=new Chess(); selectedSquare=null; validMoves=[]; lastMove=null;
   capturedByPlayer=[]; capturedByBot=[]; isThinking=playerColor==='b'; pendingPromotion=null; moveHistory=[];
+  premoveFrom=null; premoveTo=null;
   gameActive=true;
   document.getElementById('resign-btn').disabled=false;
   document.getElementById('moves-list').innerHTML='<div class="no-moves-placeholder" style="color:var(--text-dim);font-size:10px;letter-spacing:.1em;padding:4px;">No moves yet.</div>';
@@ -1121,8 +1277,49 @@ function newGame() {
 }
 
 
+// ─── Board Resize (drag handle) ───────────────────────────────
+(function() {
+  const handle = document.getElementById('board-resize-handle');
+  if (!handle) return;
+  let active = false, startX = 0, startY = 0, startSize = 0;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    active    = true;
+    startX    = e.clientX;
+    startY    = e.clientY;
+    startSize = currentBoardSize;
+    document.body.classList.add('board-resizing');
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!active) return;
+    // Use the larger of dx / dy so both dragging right and dragging down both grow the board
+    const dx   = e.clientX - startX;
+    const dy   = e.clientY - startY;
+    const delta = (Math.abs(dx) > Math.abs(dy)) ? dx : dy;
+    // Snap to multiples of 8 so squares are always whole pixels
+    let newSize = Math.round((startSize + delta) / 8) * 8;
+    newSize     = Math.max(280, Math.min(840, newSize));
+    if (newSize !== currentBoardSize) {
+      currentBoardSize = newSize;
+      document.documentElement.style.setProperty('--board-size', newSize + 'px');
+      buildCoords(); // keep coord labels in sync with width
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!active) return;
+    active = false;
+    document.body.classList.remove('board-resizing');
+    renderBoard(); // full re-render once drag ends
+  });
+})();
+
 // ─── Init ─────────────────────────────────────────────────────
 document.documentElement.style.setProperty('--board-size', currentBoardSize + 'px');
+renderPieceSetPreviews();
+preloadExternalPieces().then(() => { renderPieceSetPreviews(); if (currentPieceSet !== 'staunton') renderBoard(); });
 newGame();
 </script>
 </body>
